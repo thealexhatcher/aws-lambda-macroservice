@@ -12,7 +12,7 @@ fast_api = FastAPI()
 fast_api.include_router(hello.router)
 fast_api.add_middleware(
     CORSMiddleware,
-    allow_origins=[*],  # Allows only this origin
+    allow_origins=["*"],  # Allows only this origin
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
