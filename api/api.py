@@ -10,8 +10,6 @@ from . import msteams
 
 fast_api = FastAPI()
 fast_api.include_router(hello.router)
-fast_api.include_router(token.router)
-fast_api.include_router(msteams.router)
 fast_api.add_middleware(
     CORSMiddleware,
     allow_origins=[*],  # Allows only this origin
