@@ -17,7 +17,6 @@ boto3 = "^1.22.12"
 moto = {extras = ["all"], version = "^3.1.9"}
 uvicorn = {extras = ["standard"], version = "^0.17.6"}
 pkginfo = "^1.8.3"
-#layer dependencies
 fastapi = "0.77.1"
 mangum = "0.15.0"
 requests = "2.27.1"

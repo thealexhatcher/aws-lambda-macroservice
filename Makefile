@@ -3,7 +3,7 @@ STACKNAME?= "aws-lambda-macroservice"
 S3_BUCKET?= "838211705424-us-east-1-cloudformation" #OVERRIDE THIS BUCKET NAME
 S3_PREFIX?= "local"
 
-.PHONY: init validate build package deploy destroy postman test run clean nuke
+.PHONY: init validate build package deploy destroy postman-local postman-test test run clean nuke
 
 init:
 	poetry install
