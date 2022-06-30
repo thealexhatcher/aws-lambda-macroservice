@@ -8,3 +8,9 @@ Dockerfile:
 devcontainer.json
     https://code.visualstudio.com/docs
     
+
+
+#TODO:
+    cfn for vpc + alb
+    cfn for lambda + layer
+    uvicorn integrations tests with postman

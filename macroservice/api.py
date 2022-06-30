@@ -5,8 +5,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import hello
-from . import token
-from . import msteams
 
 fast_api = FastAPI()
 fast_api.include_router(hello.router)

@@ -5,7 +5,7 @@ import os
 from unittest import TestCase
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from api import hello
+from macroservice import hello
 
 
 class TestAPI(TestCase):
@@ -13,7 +13,6 @@ class TestAPI(TestCase):
     TestAPI
     """
 
-    @patch.dict(os.environ, {"ALLOW_ORIGIN": "https://origin.com"})
     def test_get_hello_world(self):
         """
         UNIT TEST: GET /hello-world

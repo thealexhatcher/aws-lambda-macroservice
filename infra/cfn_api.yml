@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+###
+# Lambda
+###
+Resources:
+  myLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+        LayerName: !Sub ${AWS::StackName}-layer
+        ContentUri: ../build/layer.zip               
+        CompatibleRuntimes:
+        - python3.8
+
+  myLayerPermission:
+    Type: "AWS::Lambda::LayerVersionPermission"
+    Properties:
+      Action: lambda:GetLayerVersion
+      LayerVersionArn: !Ref myLayer
+      Principal: '*'
+
+  myFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-lambda
+      Handler: macroservice.main.handler
+      CodeUri: ../build/lambda.zip
+      Runtime: python3.8
+      #NOTE: this is commented out because of the increased time to remove lambdas deployed to vpc's ( 15+ minutes ).
+      #VpcConfig:
+      #  SubnetIds: [ !Ref myPrivateSubnetA, !Ref myPrivateSubnetB ]
+      #  SecurityGroupIds: [ !GetAtt mySecurityGroup.GroupId ]
+      Layers:
+        - !Ref myLayer
+
+  myLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt myFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: elasticloadbalancing.amazonaws.com
+
+###
+# Application Load Balancer
+###
+
+  myLoadBalancer:
+    DependsOn: myAttachGateway
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing 
+      Subnets: [ !Ref myPublicSubnetA, !Ref myPublicSubnetB ]      
+      SecurityGroups: [ !GetAtt mySecurityGroup.GroupId ]
+
+  myTargetGroup:
+    DependsOn: myLambdaPermission
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: lambda
+      Targets:
+        - Id: !GetAtt myFunction.Arn
+
+  myHttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref myLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - TargetGroupArn: !Ref myTargetGroup
+          Type: forward
+
+###
+# Security 
+###
+  mySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http on port 80
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  mySecurityGroupSelfIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !GetAtt mySecurityGroup.GroupId
+      GroupId: !GetAtt mySecurityGroup.GroupId
+  
+###
+# VPC
+###
+
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.1.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:  !Sub ${AWS::StackName}-VPC
+
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: myVPC
+
+  myAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref myInternetGateway
+
+  myPublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.1.10.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list        
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Public-A
+
+  myPublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.1.20.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list  
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Public-B
+
+  myPrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.1.50.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list  
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Private-A
+
+  myPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.1.60.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list  
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Private-B
+
+  myPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+      - Key: Name
+        Value: Public
+
+  myPublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: myAttachGateway
+    Properties:
+      RouteTableId: !Ref myPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref myInternetGateway
+
+  myPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+      - Key: Name
+        Value: Private
+
+  myPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref myPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref myNATGateway
+  
+  myPublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPublicSubnetA
+      RouteTableId: !Ref myPublicRouteTable
+  myPublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPublicSubnetB
+      RouteTableId: !Ref myPublicRouteTable
+  myPrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPrivateSubnetA
+      RouteTableId: !Ref myPrivateRouteTable
+  myPrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPrivateSubnetB
+      RouteTableId: !Ref myPrivateRouteTable
+
+  myNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt myElasticIPAddress.AllocationId
+      SubnetId: !Ref myPublicSubnetA
+      Tags: 
+      - Key: Name
+        Value: !Sub NAT-${AWS::StackName}
+  
+  myElasticIPAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+
+###
+# Output
+### 
+
+Outputs:
+  DNSName:
+    Value: !GetAtt myLoadBalancer.DNSName

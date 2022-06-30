@@ -4,7 +4,14 @@ RUN yum update -y
 RUN yum install -y amazon-linux-extras sudo gcc g++ make git zip unzip tar bzip2 wget jq openssl uuid which python3 -y
 RUN amazon-linux-extras enable python3.8 
 RUN yum install -y python38
-RUN amazon-linux-extras install docker 
+RUN amazon-linux-extras install docker
+## AWS CLI
+RUN wget --quiet "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O ~/awscliv2.zip \
+    && unzip ~/awscliv2.zip \
+    && ./aws/install \
+    && aws --version \
+    && rm aws/install \
+    && rm ~/awscliv2.zip
 ## INSTALL NEWMAN
 RUN curl --silent --location https://rpm.nodesource.com/setup_17.x | bash
 RUN yum install nodejs -y
@@ -24,4 +31,4 @@ RUN poetry config cache-dir --unset \
     && poetry config virtualenvs.create true \
     && poetry config virtualenvs.in-project true
 #### START VENV ON TERMINAL STARTUP
-RUN echo "poetry install && source .venv/bin/activate" >> ~/.bashrc
+RUN echo "poetry install --no-root && source .venv/bin/activate" >> ~/.bashrc
