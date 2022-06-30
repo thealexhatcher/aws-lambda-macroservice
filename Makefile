@@ -3,7 +3,7 @@ STACKNAME?= "aws-lambda-macroservice"
 S3_BUCKET?= "838211705424-us-east-1-cloudformation" #OVERRIDE THIS BUCKET NAME
 S3_PREFIX?= "local"
 
-.PHONY: init validate build package deploy destroy test run clean nuke
+.PHONY: init validate build package deploy destroy postman test run clean nuke
 
 init:
 	poetry install
@@ -30,11 +30,17 @@ deploy: package
 destroy:
 	aws cloudformation delete-stack --stack-name $(STACKNAME) && aws cloudformation wait stack-delete-complete --stack-name $(STACKNAME)
 
+postman-local:	
+	newman run postman/api.tests.json -e postman/local.env.json -r cli --insecure --ignore-redirects	
+
+postman-test:
+	newman run postman/api.tests.json -e postman/test.env.json -r cli --insecure --ignore-redirects	
+
 test:	
 	poetry run python -m pytest
 
 run: 
-	uvicorn api.api:api --reload --port 5000
+	uvicorn macroservice.api:api --reload --port 5000
 
 clean:
 	find . | grep -E __pycache__ | xargs rm -rf

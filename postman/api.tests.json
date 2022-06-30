@@ -1,0 +1,34 @@
+{
+    "info": {
+        "name": "Test Collection",
+        "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+        "description": "Collection for Integrations Tests"
+    },
+    "item": [
+        {
+            "name": "Hello World Test",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test('resp status',function(){pm.response.to.be.ok})",
+                            "pm.test('resp content',function(){pm.expect(pm.response.json().message).equal('Hello World!')})"
+                        ]
+                    }
+                }
+            ],
+            "request": {
+                "url": "http://{{API_DOMAIN}}/hello-world",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET"
+            }
+        }
+    ]
+}
